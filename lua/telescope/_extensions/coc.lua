@@ -58,7 +58,9 @@ local locations_to_items = function(locs)
       local content = vim.fn.readfile(vim.uri_to_fname(l.uri))
       line = content[l.range.start.line + 1]
     else
-      line = (api.nvim_buf_get_lines(bufnr, l.range.start.line, l.range.start.line + 1, false) or { '' })[1] or ''
+      line = (api.nvim_buf_get_lines(bufnr, l.range.start.line, l.range.start.line + 1, false) or {
+        '',
+      })[1] or ''
     end
 
     local filename = vim.uri_to_fname(l.uri)
@@ -76,7 +78,7 @@ end
 
 local mru = function(opts)
   if config.theme then
-    opts = vim.tbl_deep_extend("force", opts or {}, config.theme)
+    opts = vim.tbl_deep_extend('force', config.theme, opts or {})
   end
   if not is_ready() then
     return
@@ -95,7 +97,12 @@ local mru = function(opts)
     local p = Path:new(val)
     local lowerPrefix = val:sub(1, #cwd):gsub(Path.path.sep, ''):lower()
     local lowerCWD = cwd:gsub(Path.path.sep, ''):lower()
-    if lowerCWD == lowerPrefix and p:exists() and p:is_file() and exists[val:sub(#cwd + 1)] == nil then
+    if
+      lowerCWD == lowerPrefix
+      and p:exists()
+      and p:is_file()
+      and exists[val:sub(#cwd + 1)] == nil
+    then
       exists[val:sub(#cwd + 1)] = true
       results[#results + 1] = val:sub(#cwd + 1)
     end
@@ -111,23 +118,25 @@ local mru = function(opts)
     end
   end
 
-  pickers.new(opts, {
-    prompt_title = 'Coc MRU',
-    sorter = conf.generic_sorter(opts),
-    previewer = conf.qflist_previewer(opts),
-    finder = finders.new_table({
-      results = results,
-      entry_maker = function(line)
-        return {
-          valid = line ~= nil,
-          value = line,
-          ordinal = line,
-          display = make_display(line),
-        }
-      end,
-    }),
-    push_cursor_on_edit = config.push_cursor_on_edit,
-  }):find()
+  pickers
+    .new(opts, {
+      prompt_title = 'Coc MRU',
+      sorter = conf.generic_sorter(opts),
+      previewer = conf.qflist_previewer(opts),
+      finder = finders.new_table({
+        results = results,
+        entry_maker = function(line)
+          return {
+            valid = line ~= nil,
+            value = line,
+            ordinal = line,
+            display = make_display(line),
+          }
+        end,
+      }),
+      push_cursor_on_edit = config.push_cursor_on_edit,
+    })
+    :find()
 end
 
 local function CocActionWithTimeout(type, ...)
@@ -149,7 +158,7 @@ local function CocActionWithTimeout(type, ...)
   end, 50)
 
   if not waited then
-    print("Timeout waiting for " .. type .. " result (timeout: " .. timeout .. "ms)")
+    print('Timeout waiting for ' .. type .. ' result (timeout: ' .. timeout .. 'ms)')
   end
 
   return result
@@ -157,7 +166,7 @@ end
 
 local links = function(opts)
   if config.theme then
-    opts = vim.tbl_deep_extend("force", opts or {}, config.theme)
+    opts = vim.tbl_deep_extend('force', config.theme, opts or {})
   end
   if not is_ready('documentLink') then
     return
@@ -185,35 +194,37 @@ local links = function(opts)
     end
   end
 
-  pickers.new(opts, {
-    prompt_title = 'Coc Document Links',
-    sorter = conf.generic_sorter(opts),
-    finder = finders.new_table({
-      results = results,
-      entry_maker = opts.entry_maker or make_entry.gen_from_quickfix(opts),
-    }),
-    attach_mappings = function(prompt_bufnr)
-      actions.select_default:replace(function()
-        actions.close(prompt_bufnr)
-        local selection = action_state.get_selected_entry()
-        local text = selection.text
-        if text:find('https?://') then
-          local opener = (jit.os == 'OSX' and 'open') or 'xdg-open'
-          os.execute(opener .. ' ' .. text)
-        else
-          vim.fn.execute('edit ' .. selection.filename)
-        end
-      end)
+  pickers
+    .new(opts, {
+      prompt_title = 'Coc Document Links',
+      sorter = conf.generic_sorter(opts),
+      finder = finders.new_table({
+        results = results,
+        entry_maker = opts.entry_maker or make_entry.gen_from_quickfix(opts),
+      }),
+      attach_mappings = function(prompt_bufnr)
+        actions.select_default:replace(function()
+          actions.close(prompt_bufnr)
+          local selection = action_state.get_selected_entry()
+          local text = selection.text
+          if text:find('https?://') then
+            local opener = (jit.os == 'OSX' and 'open') or 'xdg-open'
+            os.execute(opener .. ' ' .. text)
+          else
+            vim.fn.execute('edit ' .. selection.filename)
+          end
+        end)
 
-      return true
-    end,
-    push_cursor_on_edit = config.push_cursor_on_edit,
-  }):find()
+        return true
+      end,
+      push_cursor_on_edit = config.push_cursor_on_edit,
+    })
+    :find()
 end
 
 local handle_code_actions = function(opts, mode)
   if config.theme then
-    opts = vim.tbl_deep_extend("force", opts or {}, config.theme)
+    opts = vim.tbl_deep_extend('force', config.theme, opts or {})
   end
   if not is_ready('codeAction') then
     return
@@ -233,31 +244,33 @@ local handle_code_actions = function(opts, mode)
     x.idx = i
   end
 
-  pickers.new(opts, {
-    prompt_title = 'Coc Code Actions',
-    sorter = conf.generic_sorter(opts),
-    finder = finders.new_table({
-      results = results,
-      entry_maker = function(line)
-        return {
-          valid = line ~= nil,
-          value = line,
-          ordinal = line.idx .. line.title,
-          display = line.idx .. ': ' .. line.title,
-        }
-      end,
-    }),
-    attach_mappings = function(prompt_bufnr)
-      actions.select_default:replace(function()
-        actions.close(prompt_bufnr)
-        local selection = action_state.get_selected_entry()
-        CocActionAsync('doCodeAction', selection.value)
-      end)
+  pickers
+    .new(opts, {
+      prompt_title = 'Coc Code Actions',
+      sorter = conf.generic_sorter(opts),
+      finder = finders.new_table({
+        results = results,
+        entry_maker = function(line)
+          return {
+            valid = line ~= nil,
+            value = line,
+            ordinal = line.idx .. line.title,
+            display = line.idx .. ': ' .. line.title,
+          }
+        end,
+      }),
+      attach_mappings = function(prompt_bufnr)
+        actions.select_default:replace(function()
+          actions.close(prompt_bufnr)
+          local selection = action_state.get_selected_entry()
+          CocActionAsync('doCodeAction', selection.value)
+        end)
 
-      return true
-    end,
-    push_cursor_on_edit = config.push_cursor_on_edit,
-  }):find()
+        return true
+      end,
+      push_cursor_on_edit = config.push_cursor_on_edit,
+    })
+    :find()
 end
 
 -- TODO
@@ -276,7 +289,7 @@ end
 
 local function list_or_jump(opts)
   if config.theme then
-    opts = vim.tbl_deep_extend("force", opts or {}, config.theme)
+    opts = vim.tbl_deep_extend('force', config.theme, opts or {})
   end
   if not is_ready(opts.coc_provider) then
     return
@@ -296,16 +309,18 @@ local function list_or_jump(opts)
     if not results then
       return
     end
-    pickers.new(opts, {
-      prompt_title = opts.coc_title,
-      previewer = conf.qflist_previewer(opts),
-      sorter = conf.generic_sorter(opts),
-      finder = finders.new_table({
-        results = results,
-        entry_maker = opts.entry_maker or make_entry.gen_from_quickfix(opts),
-      }),
-      push_cursor_on_edit = config.push_cursor_on_edit,
-    }):find()
+    pickers
+      .new(opts, {
+        prompt_title = opts.coc_title,
+        previewer = conf.qflist_previewer(opts),
+        sorter = conf.generic_sorter(opts),
+        finder = finders.new_table({
+          results = results,
+          entry_maker = opts.entry_maker or make_entry.gen_from_quickfix(opts),
+        }),
+        push_cursor_on_edit = config.push_cursor_on_edit,
+      })
+      :find()
   end
 end
 
@@ -339,7 +354,7 @@ end
 
 local references = function(opts)
   if config.theme then
-    opts = vim.tbl_deep_extend("force", opts or {}, config.theme)
+    opts = vim.tbl_deep_extend('force', config.theme, opts or {})
   end
   if not is_ready('reference') then
     return
@@ -357,10 +372,9 @@ local references = function(opts)
   end
 
   local displayer = entry_display.create({
-    separator = '▏',
+    separator = ' ▏',
     items = {
       { width = 6 },
-      { width = 40 },
       { remaining = true },
     },
   })
@@ -372,33 +386,34 @@ local references = function(opts)
     return displayer({
       line_info,
       filename,
-      entry.text:gsub('.* | ', ''),
     })
   end
 
-  pickers.new(opts, {
-    prompt_title = 'Coc References',
-    previewer = conf.qflist_previewer(opts),
-    sorter = conf.generic_sorter(opts),
-    finder = finders.new_table({
-      results = results,
-      entry_maker = function(entry)
-        return {
-          valid = true,
+  pickers
+    .new(opts, {
+      prompt_title = 'Coc References',
+      previewer = conf.qflist_previewer(opts),
+      sorter = conf.generic_sorter(opts),
+      finder = finders.new_table({
+        results = results,
+        entry_maker = function(entry)
+          return {
+            valid = true,
 
-          value = entry,
-          ordinal = (not opts.ignore_filename and entry.filename or '') .. ' ' .. entry.text,
-          display = make_display,
+            value = entry,
+            ordinal = (not opts.ignore_filename and entry.filename or '') .. ' ' .. entry.text,
+            display = make_display,
 
-          filename = entry.filename,
-          lnum = entry.lnum,
-          col = entry.col,
-          text = entry.text,
-        }
-      end,
-    }),
-    push_cursor_on_edit = config.push_cursor_on_edit,
-  }):find()
+            filename = entry.filename,
+            lnum = entry.lnum,
+            col = entry.col,
+            text = entry.text,
+          }
+        end,
+      }),
+      push_cursor_on_edit = config.push_cursor_on_edit,
+    })
+    :find()
 end
 
 local references_used = function(opts)
@@ -408,28 +423,30 @@ end
 
 local locations = function(opts)
   if config.theme then
-    opts = vim.tbl_deep_extend("force", opts or {}, config.theme)
+    opts = vim.tbl_deep_extend('force', config.theme, opts or {})
   end
   local refs = vim.g.coc_jump_locations
   local results = locations_to_items(refs)
   if not results then
     return
   end
-  pickers.new(opts, {
-    prompt_title = 'Coc Locations',
-    previewer = conf.qflist_previewer(opts),
-    sorter = conf.generic_sorter(opts),
-    finder = finders.new_table({
-      results = results,
-      entry_maker = opts.entry_maker or make_entry.gen_from_quickfix(opts),
-    }),
-    push_cursor_on_edit = config.push_cursor_on_edit,
-  }):find()
+  pickers
+    .new(opts, {
+      prompt_title = 'Coc Locations',
+      previewer = conf.qflist_previewer(opts),
+      sorter = conf.generic_sorter(opts),
+      finder = finders.new_table({
+        results = results,
+        entry_maker = opts.entry_maker or make_entry.gen_from_quickfix(opts),
+      }),
+      push_cursor_on_edit = config.push_cursor_on_edit,
+    })
+    :find()
 end
 
 local document_symbols = function(opts)
   if config.theme then
-    opts = vim.tbl_deep_extend("force", opts or {}, config.theme)
+    opts = vim.tbl_deep_extend('force', config.theme, opts or {})
   end
   if not is_ready('documentSymbol') then
     return
@@ -453,20 +470,22 @@ local document_symbols = function(opts)
   end
 
   opts.ignore_filename = opts.ignore_filename or true
-  opts.path_display = { "hidden" }
-  pickers.new(opts, {
-    prompt_title = 'Coc Document Symbols',
-    previewer = conf.qflist_previewer(opts),
-    finder = finders.new_table({
-      results = results,
-      entry_maker = opts.entry_maker or make_entry.gen_from_lsp_symbols(opts),
-    }),
-    sorter = conf.prefilter_sorter({
-      tag = 'symbol_type',
-      sorter = conf.generic_sorter(opts),
-    }),
-    push_cursor_on_edit = config.push_cursor_on_edit,
-  }):find()
+  opts.path_display = { 'hidden' }
+  pickers
+    .new(opts, {
+      prompt_title = 'Coc Document Symbols',
+      previewer = conf.qflist_previewer(opts),
+      finder = finders.new_table({
+        results = results,
+        entry_maker = opts.entry_maker or make_entry.gen_from_lsp_symbols(opts),
+      }),
+      sorter = conf.prefilter_sorter({
+        tag = 'symbol_type',
+        sorter = conf.generic_sorter(opts),
+      }),
+      push_cursor_on_edit = config.push_cursor_on_edit,
+    })
+    :find()
 end
 
 local function get_workspace_symbols_requester()
@@ -493,23 +512,25 @@ end
 
 local workspace_symbols = function(opts)
   if config.theme then
-    opts = vim.tbl_deep_extend("force", opts or {}, config.theme)
+    opts = vim.tbl_deep_extend('force', config.theme, opts or {})
   end
-  pickers.new(opts, {
-    prompt_title = 'Coc Workspace Symbols',
-    finder = finders.new_dynamic({
-      entry_maker = opts.entry_maker or make_entry.gen_from_lsp_symbols(opts),
-      fn = get_workspace_symbols_requester(),
-    }),
-    previewer = conf.qflist_previewer(opts),
-    sorter = conf.generic_sorter(),
-    push_cursor_on_edit = config.push_cursor_on_edit,
-  }):find()
+  pickers
+    .new(opts, {
+      prompt_title = 'Coc Workspace Symbols',
+      finder = finders.new_dynamic({
+        entry_maker = opts.entry_maker or make_entry.gen_from_lsp_symbols(opts),
+        fn = get_workspace_symbols_requester(),
+      }),
+      previewer = conf.qflist_previewer(opts),
+      sorter = conf.generic_sorter(),
+      push_cursor_on_edit = config.push_cursor_on_edit,
+    })
+    :find()
 end
 
 local diagnostics = function(opts)
   if config.theme then
-    opts = vim.tbl_deep_extend("force", opts or {}, config.theme)
+    opts = vim.tbl_deep_extend('force', config.theme, opts or {})
   end
   if not is_ready() then
     return
@@ -525,8 +546,9 @@ local diagnostics = function(opts)
   local buf_names = {}
   local current_buf = api.nvim_get_current_buf()
   local current_filename = api.nvim_buf_get_name(current_buf)
-  if vim.fn.has("win32") then
-    current_filename = string.lower(string.sub(current_filename, 1, 1)) .. string.sub(current_filename, 2)
+  if vim.fn.has('win32') then
+    current_filename = string.lower(string.sub(current_filename, 1, 1))
+      .. string.sub(current_filename, 2)
   end
   if opts.get_all then
     local bufs = api.nvim_list_bufs()
@@ -555,19 +577,21 @@ local diagnostics = function(opts)
   end
 
   opts.path_display = F.if_nil(opts.path_display, { 'hidden' })
-  pickers.new(opts, {
-    prompt_title = 'Coc Diagnostics',
-    previewer = conf.qflist_previewer(opts),
-    finder = finders.new_table({
-      results = results,
-      entry_maker = opts.entry_maker or make_entry.gen_from_diagnostics(opts),
-    }),
-    sorter = conf.prefilter_sorter({
-      tag = 'type',
-      sorter = conf.generic_sorter(opts),
-    }),
-    push_cursor_on_edit = config.push_cursor_on_edit,
-  }):find()
+  pickers
+    .new(opts, {
+      prompt_title = 'Coc Diagnostics',
+      previewer = conf.qflist_previewer(opts),
+      finder = finders.new_table({
+        results = results,
+        entry_maker = opts.entry_maker or make_entry.gen_from_diagnostics(opts),
+      }),
+      sorter = conf.prefilter_sorter({
+        tag = 'type',
+        sorter = conf.generic_sorter(opts),
+      }),
+      push_cursor_on_edit = config.push_cursor_on_edit,
+    })
+    :find()
 end
 
 local workspace_diagnostics = function(opts)
@@ -580,7 +604,7 @@ end
 
 local commands = function(opts)
   if config.theme then
-    opts = vim.tbl_deep_extend("force", opts or {}, config.theme)
+    opts = vim.tbl_deep_extend('force', config.theme, opts or {})
   end
   if not is_ready() then
     return
@@ -638,60 +662,64 @@ local commands = function(opts)
     })
   end
 
-  pickers.new(opts, {
-    prompt_title = 'Coc Commands',
-    sorter = conf.generic_sorter(opts),
-    finder = finders.new_table({
-      results = results,
-      entry_maker = function(line)
-        return {
-          value = line.id,
-          valid = line.id ~= nil,
-          ordinal = line.id,
-          display = make_display,
-          description = line.title or '',
-        }
+  pickers
+    .new(opts, {
+      prompt_title = 'Coc Commands',
+      sorter = conf.generic_sorter(opts),
+      finder = finders.new_table({
+        results = results,
+        entry_maker = function(line)
+          return {
+            value = line.id,
+            valid = line.id ~= nil,
+            ordinal = line.id,
+            display = make_display,
+            description = line.title or '',
+          }
+        end,
+      }),
+      attach_mappings = function(prompt_bufnr)
+        actions.select_default:replace(function()
+          local selection = action_state.get_selected_entry()
+          actions.close(prompt_bufnr)
+          CocActionAsync('runCommand', selection.value)
+        end)
+        return true
       end,
-    }),
-    attach_mappings = function(prompt_bufnr)
-      actions.select_default:replace(function()
-        local selection = action_state.get_selected_entry()
-        actions.close(prompt_bufnr)
-        CocActionAsync('runCommand', selection.value)
-      end)
-      return true
-    end,
-    push_cursor_on_edit = config.push_cursor_on_edit,
-  }):find()
+      push_cursor_on_edit = config.push_cursor_on_edit,
+    })
+    :find()
 end
 
 local function subcommands(opts)
   if config.theme then
-    opts = vim.tbl_deep_extend("force", opts or {}, config.theme)
+    opts = vim.tbl_deep_extend('force', config.theme, opts or {})
   end
   local cmds = require('telescope.command').get_extensions_subcommand().coc
   cmds = vim.tbl_filter(function(v)
     return v ~= 'coc'
   end, cmds)
 
-  pickers.new(opts, {
-    prompt_title = 'Telescope Coc',
-    finder = finders.new_table({
-      results = cmds,
-    }),
-    sorter = conf.generic_sorter(opts),
-    attach_mappings = function(prompt_bufnr)
-      actions.select_default:replace(function()
-        local selection = action_state.get_selected_entry()
-        actions.close(prompt_bufnr)
-        vim.defer_fn(function()
-          require('telescope').extensions.coc[selection.value](opts)
-        end, 20)
-      end)
-      return true
-    end,
-    push_cursor_on_edit = config.push_cursor_on_edit,
-  }):find()
+  pickers
+    .new(opts, {
+      prompt_title = 'Telescope Coc',
+      finder = finders.new_table({
+        results = cmds,
+      }),
+      sorter = conf.generic_sorter(opts),
+      attach_mappings = function(prompt_bufnr)
+        actions.select_default:replace(function()
+          local selection = action_state.get_selected_entry()
+          actions.close(prompt_bufnr)
+          vim.defer_fn(function()
+            require('telescope').extensions.coc[selection.value](opts)
+          end, 20)
+        end)
+        return true
+      end,
+      push_cursor_on_edit = config.push_cursor_on_edit,
+    })
+    :find()
 end
 
 return require('telescope').register_extension({
